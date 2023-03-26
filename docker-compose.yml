@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  app:
+    image: 'weather-api:latest'
+    build:
+      context: .
+    ports:
+      - "9595-9597:8081"
+    deploy:
+      mode: replicated
+      replicas: 3
+    environment:
+      - "API_KEY=${API_KEY}"
