@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
@@ -19,24 +21,27 @@ import java.util.Optional;
 public class WeatherServiceImpl implements WeatherService {
     private final WeatherRepository weatherRepository;
     private final RestTemplate restTemplate;
+    private final Clock clock;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public WeatherServiceImpl(WeatherRepository weatherRepository, RestTemplate restTemplate) {
+    public WeatherServiceImpl(WeatherRepository weatherRepository, RestTemplate restTemplate, Clock clock) {
         this.weatherRepository = weatherRepository;
         this.restTemplate = restTemplate;
+        this.clock = clock;
     }
 
     public WeatherDto getWeatherWithCityName(String cityName) {
         Optional<WeatherEntity> weatherEntityOptional = weatherRepository.findFirstByRequestedCityNameOrderByUpdatedTimeDesc(cityName);
 
         return weatherEntityOptional.map(weather -> {
-            if (weather.getUpdatedTime().isBefore(LocalDateTime.now().minusMinutes(30))) {
+            if (weather.getUpdatedTime().isBefore(getLocalDateTimeNow().minusMinutes(30))) {
                 return WeatherDto.from(getWeatherFromWeatherStack(cityName));
             }
             return WeatherDto.from(weather);
         }).orElseGet(() -> WeatherDto.from(getWeatherFromWeatherStack(cityName)));
     }
 
+    //todo:extract as Weather Client class
     private WeatherEntity getWeatherFromWeatherStack(String cityName) {
         ResponseEntity<String> responseEntity = restTemplate.getForEntity(getWeatherStackApiUrl(cityName), String.class);
         try {
@@ -58,9 +63,16 @@ public class WeatherServiceImpl implements WeatherService {
                 weatherResponse.location().name(),
                 weatherResponse.location().country(),
                 weatherResponse.current().temperature(),
-                LocalDateTime.now(),
+                getLocalDateTimeNow(),
                 LocalDateTime.parse(weatherResponse.location().localTime(), dateTimeFormatter)
         );
         return weatherRepository.save(weatherEntity);
+    }
+
+    private LocalDateTime getLocalDateTimeNow() {
+        Instant instant = clock.instant();
+        return LocalDateTime.ofInstant(
+                instant,
+                Clock.systemDefaultZone().getZone());
     }
 }

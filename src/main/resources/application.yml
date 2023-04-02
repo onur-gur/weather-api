@@ -3,11 +3,14 @@ server:
 
 spring:
   datasource:
-    driver-class-name: org.h2.Driver
-    url: jdbc:h2:mem:weatherdb
-  h2:
-    console:
-      enabled: true
+    driverClassName: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/weather?useUniCode_true&useSSL=false&useLegacyDatetimeCode=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 12345
+  jpa:
+    hibernate.ddl-auto: update
+    generate-ddl: true
+    show-sql: true
   config:
     import: optional:file:.env[.properties]
 

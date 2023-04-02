@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("api/v1/weather")
+@RequestMapping("/api/v1/weather")
 @Validated
 @Tag(name = "Weather API V1", description = "Search with city name for temperature")
 public class WeatherController {
