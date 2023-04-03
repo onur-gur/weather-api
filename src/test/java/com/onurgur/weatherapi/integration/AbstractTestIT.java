@@ -74,7 +74,7 @@ public abstract class AbstractTestIT {
                         response()
                                 .withStatusCode(200)
                                 .withHeaders(new Header("Content-Type", "application/json;"))
-                                .withBody(json(
+                                .withBody(
                                         """
                                                 {
                                                      "request": {
@@ -118,7 +118,7 @@ public abstract class AbstractTestIT {
                                                      }
                                                  }
                                                 """
-                                ))
+                                )
                 );
     }
 

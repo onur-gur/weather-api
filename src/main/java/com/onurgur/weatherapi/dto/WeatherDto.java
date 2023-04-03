@@ -1,10 +1,12 @@
 package com.onurgur.weatherapi.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.onurgur.weatherapi.model.WeatherEntity;
 
 import java.time.LocalDateTime;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record WeatherDto(
         String cityName,
         String country,

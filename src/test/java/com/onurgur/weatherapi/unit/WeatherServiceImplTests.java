@@ -7,6 +7,7 @@ import com.onurgur.weatherapi.dto.WeatherDto;
 import com.onurgur.weatherapi.model.WeatherEntity;
 import com.onurgur.weatherapi.repository.WeatherRepository;
 import com.onurgur.weatherapi.service.WeatherServiceImpl;
+import com.onurgur.weatherapi.service.WeatherStackApiClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -31,6 +32,8 @@ public class WeatherServiceImplTests extends BaseUnit {
     private Clock fixedClock;
     private ObjectMapper objectMapper;
 
+    private WeatherStackApiClient weatherStackApiClient;
+
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
@@ -39,8 +42,9 @@ public class WeatherServiceImplTests extends BaseUnit {
         weatherRepository = Mockito.mock(WeatherRepository.class);
         restTemplate = Mockito.mock(RestTemplate.class);
         clock = Mockito.mock(Clock.class);
+        weatherStackApiClient = Mockito.mock(WeatherStackApiClient.class);
 
-        weatherServiceImpl = new WeatherServiceImpl(weatherRepository, restTemplate, clock);
+        weatherServiceImpl = new WeatherServiceImpl(weatherRepository, weatherStackApiClient, clock);
 
         Constants constants = new Constants();
         constants.setApiUrl("weather-stack-api-url");
@@ -49,7 +53,7 @@ public class WeatherServiceImplTests extends BaseUnit {
         when(clock.instant()).thenReturn(getCurrentInstant());
         when(clock.getZone()).thenReturn(Clock.systemDefaultZone().getZone());
 
-        fixedClock = Clock.fixed(LocalDate.of(2023,3,30).atStartOfDay(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
+        fixedClock = Clock.fixed(LocalDate.of(2023, 3, 30).atStartOfDay(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
         doReturn(fixedClock.instant()).when(clock).instant();
         doReturn(fixedClock.getZone()).when(clock).getZone();
     }
