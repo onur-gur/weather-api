@@ -15,7 +15,7 @@ import java.util.Optional;
 @Service
 public class WeatherServiceImpl implements WeatherService {
     private final WeatherRepository weatherRepository;
-    private WeatherStackApiClient weatherStackApiClient;
+    private final WeatherStackApiClient weatherStackApiClient;
     private final Clock clock;
 
     public WeatherServiceImpl(WeatherRepository weatherRepository, WeatherStackApiClient weatherStackApiClient, Clock clock) {

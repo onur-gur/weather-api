@@ -1,22 +1,19 @@
 package com.onurgur.weatherapi.unit;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
-import com.onurgur.weatherapi.contants.Constants;
 import com.onurgur.weatherapi.dto.WeatherDto;
+import com.onurgur.weatherapi.dto.WeatherResponse;
 import com.onurgur.weatherapi.model.WeatherEntity;
 import com.onurgur.weatherapi.repository.WeatherRepository;
 import com.onurgur.weatherapi.service.WeatherServiceImpl;
 import com.onurgur.weatherapi.service.WeatherStackApiClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.Clock;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,11 +24,8 @@ public class WeatherServiceImplTests extends BaseUnit {
 
     private WeatherServiceImpl weatherServiceImpl;
     private WeatherRepository weatherRepository;
-    private RestTemplate restTemplate;
     private Clock clock;
-    private Clock fixedClock;
     private ObjectMapper objectMapper;
-
     private WeatherStackApiClient weatherStackApiClient;
 
     @BeforeEach
@@ -39,54 +33,85 @@ public class WeatherServiceImplTests extends BaseUnit {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new ParameterNamesModule());
 
-        weatherRepository = Mockito.mock(WeatherRepository.class);
-        restTemplate = Mockito.mock(RestTemplate.class);
-        clock = Mockito.mock(Clock.class);
-        weatherStackApiClient = Mockito.mock(WeatherStackApiClient.class);
+        weatherRepository = mock(WeatherRepository.class);
+        clock = mock(Clock.class);
+        weatherStackApiClient = mock(WeatherStackApiClient.class);
 
         weatherServiceImpl = new WeatherServiceImpl(weatherRepository, weatherStackApiClient, clock);
 
-        Constants constants = new Constants();
-        constants.setApiUrl("weather-stack-api-url");
-        constants.setApiKey("api-key");
-
         when(clock.instant()).thenReturn(getCurrentInstant());
         when(clock.getZone()).thenReturn(Clock.systemDefaultZone().getZone());
-
-        fixedClock = Clock.fixed(LocalDate.of(2023, 3, 30).atStartOfDay(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
-        doReturn(fixedClock.instant()).when(clock).instant();
-        doReturn(fixedClock.getZone()).when(clock).getZone();
     }
 
     @Test
-    void getWeather_whenExistsInDbByUpdatedTimeBefore30MinNow_shouldReturnWeather() {
-        String cityName = "istanbul";
+    void getWeatherWithCityName_whenFirstRequestForRequestedCityName_shouldRequestWeatherStackApiAndSaveEntityAndReturnWeather() throws JsonProcessingException {
+        String response = getAnkaraWeatherJson();
+        WeatherResponse weatherResponse = objectMapper.readValue(response, WeatherResponse.class);
 
-        when(weatherRepository.findFirstByRequestedCityNameOrderByUpdatedTimeDesc(cityName)).thenReturn(Optional.of(getWeatherEntity()));
+        WeatherEntity toSaveEntity = getToSavedWeatherEntity(weatherResponse.location().localTime());
+        WeatherEntity savedEntity = getSavedWeatherEntity(weatherResponse.location().localTime());
 
-        WeatherDto actualWeatherDto = weatherServiceImpl.getWeatherWithCityName(cityName);
+        WeatherDto expectedWeather = new WeatherDto(savedEntity.getCityName(), savedEntity.getCountry(), savedEntity.getTemperature(), savedEntity.getUpdatedTime());
 
-        WeatherDto expectedWeather = WeatherDto.from(getWeatherEntity());
+        when(weatherRepository.findFirstByRequestedCityNameOrderByUpdatedTimeDesc(requestedCity)).thenReturn(Optional.empty());
+        when(weatherStackApiClient.getWeatherFromWeatherStack(requestedCity)).thenReturn(weatherResponse);
+        when(weatherRepository.save(toSaveEntity)).thenReturn(savedEntity);
+
+        WeatherDto actualWeatherDto = weatherServiceImpl.getWeatherWithCityName(requestedCity);
+
         assertEquals(expectedWeather, actualWeatherDto);
 
-        verifyNoInteractions(restTemplate);
-        verify(weatherRepository).findFirstByRequestedCityNameOrderByUpdatedTimeDesc(cityName);
+        verify(weatherRepository).save(toSaveEntity);
+        verify(weatherStackApiClient).getWeatherFromWeatherStack(requestedCity);
+    }
+
+    @Test
+    void getWeatherWithCityName_whenExistsInDbByUpdatedTimeBefore30MinNow_shouldReturnSavedWeatherResponseInDb() throws JsonProcessingException {
+        String responseJson = getAnkaraWeatherJson();
+        WeatherResponse response = objectMapper.readValue(responseJson, WeatherResponse.class);
+        WeatherEntity savedEntity = getSavedWeatherEntity(response.location().localTime());
+
+        WeatherDto expectedWeather = new WeatherDto(savedEntity.getCityName(), savedEntity.getCountry(), savedEntity.getTemperature(), savedEntity.getUpdatedTime());
+
+        when(weatherRepository.findFirstByRequestedCityNameOrderByUpdatedTimeDesc(requestedCity)).thenReturn(Optional.of(savedEntity));
+
+        WeatherDto actualWeatherDto = weatherServiceImpl.getWeatherWithCityName(requestedCity);
+
+        assertEquals(expectedWeather, actualWeatherDto);
+
+        verifyNoInteractions(weatherStackApiClient);
+        verify(weatherRepository).findFirstByRequestedCityNameOrderByUpdatedTimeDesc(requestedCity);
         verifyNoMoreInteractions(weatherRepository);
     }
 
-    private WeatherEntity getWeatherEntity() {
-        return new WeatherEntity(
-                UUID.randomUUID().toString(),
-                "istanbul",
+    @Test
+    void getWeatherWithCityName_whenExistsInDbByUpdatedTimeAfter30MinNow_shouldRequestWeatherStackApiAndSaveEntityAndReturnWeather() throws JsonProcessingException {
+        String response = getAnkaraWeatherJson();
+        WeatherResponse weatherResponse = objectMapper.readValue(response, WeatherResponse.class);
+
+        String cityName = "Ankara";
+        WeatherEntity oldEntity = new WeatherEntity("id",
+                requestedCity,
+                "Ankara",
                 "Turkey",
                 Double.valueOf("10"),
-                LocalDateTime.of(2023, 3, 29, 23, 53),
-                LocalDateTime.of(2023, 3, 29, 23, 49));
+                LocalDateTime.parse("2023-03-05 12:35", formatter),
+                LocalDateTime.parse(weatherResponse.location().localTime(), formatter));
+
+        WeatherEntity toSaveEntity = getToSavedWeatherEntity(weatherResponse.location().localTime());
+        WeatherEntity savedEntity = getSavedWeatherEntity(weatherResponse.location().localTime());
+
+        WeatherDto expectedWeather = new WeatherDto(savedEntity.getCityName(), savedEntity.getCountry(), savedEntity.getTemperature(), savedEntity.getUpdatedTime());
+
+        when(weatherRepository.findFirstByRequestedCityNameOrderByUpdatedTimeDesc(cityName)).thenReturn(Optional.of(oldEntity));
+        when(weatherStackApiClient.getWeatherFromWeatherStack(cityName)).thenReturn(weatherResponse);
+        when(weatherRepository.save(toSaveEntity)).thenReturn(savedEntity);
+
+        WeatherDto actualWeatherDto = weatherServiceImpl.getWeatherWithCityName(cityName);
+
+        assertEquals(expectedWeather, actualWeatherDto);
+
+        verify(weatherRepository).save(toSaveEntity);
+        verify(weatherStackApiClient).getWeatherFromWeatherStack(cityName);
     }
-
-    private WeatherDto getWeatherDto() {
-        return new WeatherDto("istanbul", "Turkey", Double.valueOf("10"), LocalDateTime.of(2023, 3, 29, 23, 53));
-    }
-
-
 }
