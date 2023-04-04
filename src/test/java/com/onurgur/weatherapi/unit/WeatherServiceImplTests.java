@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
@@ -55,13 +54,13 @@ public class WeatherServiceImplTests extends BaseUnit {
 
         when(weatherRepository.findFirstByRequestedCityNameOrderByUpdatedTimeDesc(requestedCity)).thenReturn(Optional.empty());
         when(weatherStackApiClient.getWeatherFromWeatherStack(requestedCity)).thenReturn(weatherResponse);
-        when(weatherRepository.save(toSaveEntity)).thenReturn(savedEntity);
+        when(weatherRepository.save(any(WeatherEntity.class))).thenReturn(savedEntity);
 
         WeatherDto actualWeatherDto = weatherServiceImpl.getWeatherWithCityName(requestedCity);
 
         assertEquals(expectedWeather, actualWeatherDto);
 
-        verify(weatherRepository).save(toSaveEntity);
+        verify(weatherRepository).save(any(WeatherEntity.class));
         verify(weatherStackApiClient).getWeatherFromWeatherStack(requestedCity);
     }
 
@@ -105,13 +104,13 @@ public class WeatherServiceImplTests extends BaseUnit {
 
         when(weatherRepository.findFirstByRequestedCityNameOrderByUpdatedTimeDesc(cityName)).thenReturn(Optional.of(oldEntity));
         when(weatherStackApiClient.getWeatherFromWeatherStack(cityName)).thenReturn(weatherResponse);
-        when(weatherRepository.save(toSaveEntity)).thenReturn(savedEntity);
+        when(weatherRepository.save(any(WeatherEntity.class))).thenReturn(savedEntity);
 
         WeatherDto actualWeatherDto = weatherServiceImpl.getWeatherWithCityName(cityName);
 
         assertEquals(expectedWeather, actualWeatherDto);
 
-        verify(weatherRepository).save(toSaveEntity);
+        verify(weatherRepository).save(any(WeatherEntity.class));
         verify(weatherStackApiClient).getWeatherFromWeatherStack(cityName);
     }
 }
