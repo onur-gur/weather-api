@@ -121,10 +121,4 @@ public abstract class AbstractTestIT {
                                 )
                 );
     }
-
-    @Test
-    public void test() {
-        assertThat(mySql.isRunning()).isTrue();
-        assertThat(mockServer.isRunning()).isTrue();
-    }
 }
